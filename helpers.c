@@ -1,4 +1,4 @@
-//Hash
+//Hash+TopSort
 FILE *inp = fopen("input.txt", "r");
 int n, m;
 fscanf(inp, "%d%d", &n, &m);
@@ -44,47 +44,101 @@ else
     }
 }
 fclose(out);
+// free graph
 cgraph_destroy(&g);
 for (int i = 0; i < n; ++i)
 {
     free(id_to_name[i]);
 }
+// free hasing
 free(id_to_name);
+//free vt
 cgraph_ivec_free(&edges);
 cgraph_ivec_free(&order);
-fclose(inp);
-return0;
 
 // BFS SIMPLE
 int cgraph_simple_bfs(const cgraph_t *graph,
-               CGRAPH_INTEGER root,
-               cgraph_neimode_t mode,
-               bool unreachable,
-               cgraph_ivec_t *father,
-               cgraph_ivec_t *dist) {
-  return cgraph_bfs(graph,
-      root,
-      mode,
-      unreachable,
-      0,
-      0,
-      0,
-      father,
-      0,
-      0,
-      dist);
+                      CGRAPH_INTEGER root,
+                      cgraph_neimode_t mode,
+                      bool unreachable,
+                      cgraph_ivec_t *father,
+                      cgraph_ivec_t *dist)
+{
+    return cgraph_bfs(graph,
+                      root,
+                      mode,
+                      unreachable,
+                      0,
+                      0,
+                      0,
+                      father,
+                      0,
+                      0,
+                      dist);
 }
 
 //BFS
 int cgraph_bfs(const cgraph_t *graph,
-               CGRAPH_INTEGER root, // id or vertex root
-               cgraph_neimode_t mode, // CGRAPH_OUT
-               bool unreachable, // true if we wanna visit all nodes (even unreachable), false otw
+               CGRAPH_INTEGER root,            // id or vertex root
+               cgraph_neimode_t mode,          // CGRAPH_OUT
+               bool unreachable,               // true if we wanna visit all nodes (even unreachable), false otw
                cgraph_ivec_t const restricted, // ptr to a vt containing vertex id
-               cgraph_ivec_t *order, // order of visit stored here
-               cgraph_ivec_t *rank, // rank of vertices stored here
-               cgraph_ivec_t *father, // id of father node stored here
-               cgraph_ivec_t *pred, //id of vertex that was visited before the current one is stored here. If there is no such vertex (the current vertex is the root of a search tree), then -1 is stored.
-               cgraph_ivec_t *succ, //id of the vertex that was visited after the current one is stored here. If there is no such vertex (the current one is the last in a search tree), then -1 is stored.
-               cgraph_ivec_t *dist) {} //the distance from the root of the current search tree is stored here.
+               cgraph_ivec_t *order,           // order of visit stored here
+               cgraph_ivec_t *rank,            // rank of vertices stored here
+               cgraph_ivec_t *father,          // id of father node stored here
+               cgraph_ivec_t *pred,            //id of vertex that was visited before the current one is stored here. If there is no such vertex (the current vertex is the root of a search tree), then -1 is stored.
+               cgraph_ivec_t *succ,            //id of the vertex that was visited after the current one is stored here. If there is no such vertex (the current one is the last in a search tree), then -1 is stored.
+               cgraph_ivec_t *dist)
+{
+} //the distance from the root of the current search tree is stored here.
 
+// dijkstra
+cgraph_ivec_t edges = cgraph_ivec_create();
+cgraph_rvec_t weights = cgraph_rvec_create();
+cgraph_ivec_t vertices = cgraph_ivec_create();
+cgraph_t g;
+
+cgraph_ivec_push_back(&edges, 1);
+cgraph_ivec_push_back(&edges, 2);
+cgraph_rvec_push_back(&weights, 10);
+/* ... ... ... */
+
+for (i = 1; i <= n; i++)
+{
+    cgraph_ivec_push_back(&vertices, i);
+}
+
+cgraph_create(&g, edges, 0, true);
+cgraph_get_shortest_path_dijkstra(&g, &vertices, &edges, from, to, weights, CGRAPH_OUT)
+
+int flag =0;
+  for(i =0;i< cgraph_ecount(&g);i++){
+    if(vertices[i] == 6){
+      flag=1;
+      break;
+    } 
+    printf("%d\t", vertices[i]);
+  }
+  if(!flag){
+    printf("-1\n");
+  }else
+  {
+    printf("There exists such a path!\n");
+  }
+
+  for (i = 0; vertices[i] != 6; i++)
+{
+    printf("%ld\t", vertices[i]);
+}
+i++;
+printf("%ld\t", vertices[i]);
+
+// get_shortest_path
+cgraph_get_shortest_path(&g, &vertices, &edges, 1, 4, CGRAPH_ALL);
+i = 0;
+while (vertices[i] != 4)
+{
+    printf("%d\t", vertices[i]);
+    i++;
+} 
+printf("%d\t", vertices[i]);

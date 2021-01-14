@@ -4229,25 +4229,45 @@ int cgraph_get_eid(const cgraph_t *graph, CGRAPH_INTEGER *eid,
 int main()
 {
   FILE *fptr = fopen("input.txt", "r");
-  int n1, n2, litre, i;
-  // fscanf(fptr, "%d%d", &n1, &n2);
+  int n, i = 0;
   cgraph_ivec_t edges = cgraph_ivec_create();
-  cgraph_ivec_t father = cgraph_ivec_create();
-  cgraph_ivec_t dist = cgraph_ivec_create();
+  cgraph_ivec_t order = cgraph_ivec_create();
+  cgraph_ivec_t order_out = cgraph_ivec_create();
   cgraph_t g;
-  for (i = 0; i < 9; i++)
-  {
-    fscanf(fptr, "%d", &litre);
-    cgraph_ivec_push_back(&edges, litre);
-    fscanf(fptr, "%d", &litre);
-    cgraph_ivec_push_back(&edges, litre);
-    cgraph_ivec_push_back(&father, 0);
-    cgraph_ivec_push_back(&dist, 0);
-  }
+  cgraph_ivec_push_back(&edges, 1);
+  cgraph_ivec_push_back(&edges, 2);
+
+  cgraph_ivec_push_back(&edges, 1);
+  cgraph_ivec_push_back(&edges, 3);
+
+  cgraph_ivec_push_back(&edges, 2);
+  cgraph_ivec_push_back(&edges, 4);
+
+  cgraph_ivec_push_back(&edges, 2);
+  cgraph_ivec_push_back(&edges, 5);
+
+  cgraph_ivec_push_back(&edges, 2);
+  cgraph_ivec_push_back(&edges, 6);
+
+  cgraph_ivec_push_back(&edges, 5);
+  cgraph_ivec_push_back(&edges, 7);
+
+  cgraph_ivec_push_back(&edges, 3);
+  cgraph_ivec_push_back(&edges, 6);
+
+  cgraph_ivec_push_back(&edges, 4);
+  cgraph_ivec_push_back(&edges, 7);
+
   cgraph_create(&g, edges, 0, true);
-  cgraph_simple_bfs(&g, 0, CGRAPH_OUT, false, &father, &dist);
+  // cgraph_dfs(&g, 1, CGRAPH_OUT, false, &order, &order_out, NULL, NULL);
+  cgraph_ivec_t res = cgraph_ivec_create();
+  cgraph_degree_all(&g, &res, CGRAPH_OUT, true);
+  for (i = 0; i < cgraph_vcount(&g); i++)
+  {
+    printf("%d", res[i]);
+  }
   fclose(fptr);
-  FILE *out = fopen("output.txt", "w");
+  fptr = fopen("output.txt", "w");
   cgraph_destroy(&g);
   cgraph_ivec_free(&edges);
   fclose(fptr);
