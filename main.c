@@ -1942,6 +1942,67 @@ extern "C"
 {
 #endif
 
+  typedef struct cgraph_istack_s CGraphIStack;
+  typedef CGraphIStack *cgraph_istack_t;
+  typedef const CGraphIStack *cgraph_istack_const_t;
+
+  cgraph_istack_t cgraph_istack_create();
+  int cgraph_istack_pop(cgraph_istack_t s, CGRAPH_INTEGER *out);
+  int cgraph_istack_push(cgraph_istack_t s, CGRAPH_INTEGER element);
+  void cgraph_istack_free(cgraph_istack_t *s);
+
+  int cgraph_istack_top(cgraph_istack_const_t const s, CGRAPH_INTEGER *out);
+  size_t cgraph_istack_size(cgraph_istack_const_t const s);
+  bool cgraph_istack_empty(cgraph_istack_const_t const s);
+
+#ifdef __cplusplus
+}
+#endif
+
+typedef void cgraph_error_handler_t(
+    const char *reason,
+    const char *file,
+    int line);
+
+#define CGRAPH_ERROR(reason)                  \
+  do                                          \
+  {                                           \
+    cgraph_error(reason, __FILE__, __LINE__); \
+  } while (0)
+
+#define CGRAPH_CHECK(a)           \
+  do                              \
+  {                               \
+    int cgraph_i_ret = (a);       \
+    if (cgraph_i_ret != 0)        \
+    {                             \
+      CGRAPH_ERROR("API failed"); \
+    }                             \
+  } while (0)
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+  void cgraph_error_handler_ignore(const char *, const char *, int);
+
+  int cgraph_error(const char *reason,
+                   const char *file,
+                   int line);
+
+  cgraph_error_handler_t *cgraph_set_error_handler(
+      cgraph_error_handler_t *new_handler);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
   int cgraph_bfs(const cgraph_t *graph,
                  CGRAPH_INTEGER root,
                  cgraph_neimode_t mode,
@@ -1975,16 +2036,17 @@ extern "C"
 #endif
 
 int cgraph_bfs(const cgraph_t *graph,
-               CGRAPH_INTEGER root, // id or vertex root
-               cgraph_neimode_t mode, // CGRAPH_OUT
-               bool unreachable, // true if we wanna visit all nodes (even unreachable), false otw
+               CGRAPH_INTEGER root,            // id or vertex root
+               cgraph_neimode_t mode,          // CGRAPH_OUT
+               bool unreachable,               // true if we wanna visit all nodes (even unreachable), false otw
                cgraph_ivec_t const restricted, // ptr to a vt containing vertex id
-               cgraph_ivec_t *order, // order of visit stored here
-               cgraph_ivec_t *rank, // rank of vertices stored here
-               cgraph_ivec_t *father, // id of father node stored here
-               cgraph_ivec_t *pred, //id of vertex that was visited before the current one is stored here. If there is no such vertex (the current vertex is the root of a search tree), then -1 is stored.
-               cgraph_ivec_t *succ, //id of the vertex that was visited after the current one is stored here. If there is no such vertex (the current one is the last in a search tree), then -1 is stored.
-               cgraph_ivec_t *dist) { //the distance from the root of the current search tree is stored here.
+               cgraph_ivec_t *order,           // order of visit stored here
+               cgraph_ivec_t *rank,            // rank of vertices stored here
+               cgraph_ivec_t *father,          // id of father node stored here
+               cgraph_ivec_t *pred,            //id of vertex that was visited before the current one is stored here. If there is no such vertex (the current vertex is the root of a search tree), then -1 is stored.
+               cgraph_ivec_t *succ,            //id of the vertex that was visited after the current one is stored here. If there is no such vertex (the current one is the last in a search tree), then -1 is stored.
+               cgraph_ivec_t *dist)
+{ //the distance from the root of the current search tree is stored here.
   cgraph_iqueue_t q = cgraph_iqueue_create();
   CGRAPH_INTEGER no_of_nodes = cgraph_vcount(graph);
   CGRAPH_INTEGER actroot = root;
@@ -1992,87 +2054,112 @@ int cgraph_bfs(const cgraph_t *graph,
   CGRAPH_INTEGER act_rank = 0;
   CGRAPH_INTEGER pred_vec = -1;
 
-  if (root < 0 || root >= no_of_nodes) {
+  if (root < 0 || root >= no_of_nodes)
+  {
     CGRAPH_ERROR("Invalid root vertex in BFS");
   }
 
-  if (restricted) {
+  if (restricted)
+  {
     CGRAPH_INTEGER min, max;
     cgraph_ivec_minmax(restricted, &min, &max);
-    if (min < 0 || max >= no_of_nodes) {
+    if (min < 0 || max >= no_of_nodes)
+    {
       CGRAPH_ERROR("Invalid vertex id in restricted set");
     }
   }
 
-  if (mode != CGRAPH_OUT && mode != CGRAPH_IN && mode != CGRAPH_ALL) {
+  if (mode != CGRAPH_OUT && mode != CGRAPH_IN && mode != CGRAPH_ALL)
+  {
     CGRAPH_ERROR("Invalid mode argument");
   }
 
-  if (!cgraph_is_directed(graph)) {
-     mode = CGRAPH_ALL;
+  if (!cgraph_is_directed(graph))
+  {
+    mode = CGRAPH_ALL;
   }
 
-  bool *added = (bool*)calloc(no_of_nodes, sizeof(bool));
+  bool *added = (bool *)calloc(no_of_nodes, sizeof(bool));
 
-/* Mark the vertices that are not in the restricted set, as already
+  /* Mark the vertices that are not in the restricted set, as already
   found. Special care must be taken for vertices that are not in
   the restricted set, but are to be used as 'root' vertices. */
-  if (restricted) {
+  if (restricted)
+  {
     long int i, n = cgraph_ivec_size(restricted);
-    for (i = 0; i < no_of_nodes; ++i) {
-     added[i] = true;
+    for (i = 0; i < no_of_nodes; ++i)
+    {
+      added[i] = true;
     }
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < n; i++)
+    {
       added[restricted[i]] = false;
     }
   }
 
   /* Resize result vectors, and fill them with IGRAPH_NAN */
 
-# define VINIT(v) if (v) {                      \
-   cgraph_ivec_init((v), no_of_nodes);   \
-   cgraph_ivec_fill((*v), CGRAPH_NAN); }
+#define VINIT(v)                        \
+  if (v)                                \
+  {                                     \
+    cgraph_ivec_init((v), no_of_nodes); \
+    cgraph_ivec_fill((*v), CGRAPH_NAN); \
+  }
 
-VINIT(order);
-VINIT(rank);
-VINIT(father);
-VINIT(pred);
-VINIT(succ);
-VINIT(dist);
-# undef VINIT
+  VINIT(order);
+  VINIT(rank);
+  VINIT(father);
+  VINIT(pred);
+  VINIT(succ);
+  VINIT(dist);
+#undef VINIT
 
   int rootpos = 0;
   cgraph_ivec_t neis = cgraph_ivec_create();
-  while (1) {
-    if (rootpos == 0) {
+  while (1)
+  {
+    if (rootpos == 0)
+    {
       actroot = root;
       ++rootpos;
-    } else if (unreachable) {
-      if (rootpos == 1) {
+    }
+    else if (unreachable)
+    {
+      if (rootpos == 1)
+      {
         actroot = 0;
         ++rootpos;
-      } else if (actroot + 1 < no_of_nodes) {
+      }
+      else if (actroot + 1 < no_of_nodes)
+      {
         ++actroot;
-      } else {
+      }
+      else
+      {
         break;
       }
-    } else {
+    }
+    else
+    {
       break;
     }
-    if (added[actroot]) {
+    if (added[actroot])
+    {
       continue;
     }
 
     CGRAPH_CHECK(cgraph_iqueue_enqueue(q, actroot));
     CGRAPH_CHECK(cgraph_iqueue_enqueue(q, 0));
     added[actroot] = true;
-    if (father) {
+    if (father)
+    {
       (*father)[actroot] = -1;
     }
 
     pred_vec = -1;
 
-    while (!cgraph_iqueue_empty(q)) {
+    while (!cgraph_iqueue_empty(q))
+    {
       CGRAPH_INTEGER actvect;
       cgraph_iqueue_poll(q, &actvect);
       CGRAPH_INTEGER actdist;
@@ -2082,44 +2169,55 @@ VINIT(dist);
       cgraph_neighbors(graph, &neis, actvect, mode);
       long int i, n = cgraph_ivec_size(neis);
 
-      if (pred) {
+      if (pred)
+      {
         (*pred)[actvect] = pred_vec;
       }
-      if (rank) {
-        (*rank) [actvect] = act_rank;
+      if (rank)
+      {
+        (*rank)[actvect] = act_rank;
       }
-      if (order) {
+      if (order)
+      {
         (*order)[act_rank++] = actvect;
       }
-      if (dist) {
+      if (dist)
+      {
         (*dist)[actvect] = actdist;
       }
 
-      for (i = 0; i < n; i++) {
+      for (i = 0; i < n; i++)
+      {
         CGRAPH_INTEGER nei = neis[i];
-        if (!added[nei]) {
+        if (!added[nei])
+        {
           added[nei] = true;
           CGRAPH_CHECK(cgraph_iqueue_enqueue(q, nei));
           CGRAPH_CHECK(cgraph_iqueue_enqueue(q, actdist + 1));
-          if (father) {
+          if (father)
+          {
             (*father)[nei] = actvect;
           }
         }
       }
 
-      if (cgraph_iqueue_empty(q)) {
+      if (cgraph_iqueue_empty(q))
+      {
         succ_vec = -1;
-      } else {
+      }
+      else
+      {
         cgraph_iqueue_peek(q, &succ_vec);
       }
 
-      if (succ) {
+      if (succ)
+      {
         (*succ)[actvect] = succ_vec;
       }
       pred_vec = actvect;
 
     } /* while q !empty */
-  } /* while (1) */
+  }   /* while (1) */
   free(added);
   cgraph_ivec_free(&neis);
   cgraph_iqueue_free(&q);
@@ -2127,22 +2225,23 @@ VINIT(dist);
 }
 
 int cgraph_simple_bfs(const cgraph_t *graph,
-               CGRAPH_INTEGER root,
-               cgraph_neimode_t mode,
-               bool unreachable,
-               cgraph_ivec_t *father,
-               cgraph_ivec_t *dist) {
+                      CGRAPH_INTEGER root,
+                      cgraph_neimode_t mode,
+                      bool unreachable,
+                      cgraph_ivec_t *father,
+                      cgraph_ivec_t *dist)
+{
   return cgraph_bfs(graph,
-      root,
-      mode,
-      unreachable,
-      0,
-      0,
-      0,
-      father,
-      0,
-      0,
-      dist);
+                    root,
+                    mode,
+                    unreachable,
+                    0,
+                    0,
+                    0,
+                    father,
+                    0,
+                    0,
+                    dist);
 }
 
 //igraph_dfs
@@ -2196,83 +2295,102 @@ int cgraph_dfs(const cgraph_t *graph,
                cgraph_ivec_t *order,
                cgraph_ivec_t *order_out,
                cgraph_ivec_t *father,
-               cgraph_ivec_t *dist) {
+               cgraph_ivec_t *dist)
+{
   CGRAPH_INTEGER no_of_nodes = cgraph_vcount(graph);
   cgraph_istack_t stack = cgraph_istack_create();
-  bool *added = (bool*)calloc(no_of_nodes, sizeof(bool));
+  bool *added = (bool *)calloc(no_of_nodes, sizeof(bool));
   CGRAPH_INTEGER actroot, act_rank = 0, rank_out = 0, act_dist = 0;
 
-  if (root < 0 || root >= no_of_nodes) {
+  if (root < 0 || root >= no_of_nodes)
+  {
     CGRAPH_ERROR("Invalid root vertex for DFS");
   }
 
-  if (mode != CGRAPH_OUT && mode != CGRAPH_IN && mode != CGRAPH_ALL) {
+  if (mode != CGRAPH_OUT && mode != CGRAPH_IN && mode != CGRAPH_ALL)
+  {
     CGRAPH_ERROR("Invalid mode argument");
   }
 
-  if (!cgraph_is_directed(graph)) {
+  if (!cgraph_is_directed(graph))
+  {
     mode = CGRAPH_ALL;
   }
 
-/* Resize result vectors and fill them with IGRAPH_NAN */
+  /* Resize result vectors and fill them with IGRAPH_NAN */
 
-# define VINIT(v) if (v) {                \
-  cgraph_ivec_init(v, no_of_nodes);       \
-  cgraph_ivec_fill((*v), CGRAPH_NAN); }
+#define VINIT(v)                        \
+  if (v)                                \
+  {                                     \
+    cgraph_ivec_init(v, no_of_nodes);   \
+    cgraph_ivec_fill((*v), CGRAPH_NAN); \
+  }
 
   VINIT(order);
   VINIT(order_out);
   VINIT(father);
   VINIT(dist);
 
-# undef VINIT
+#undef VINIT
 
   CGRAPH_CHECK(cgraph_istack_push(stack, root));
   added[root] = true;
-  if (father) {
+  if (father)
+  {
     (*father)[root] = -1;
   }
-  if (order) {
+  if (order)
+  {
     (*order)[act_rank++] = root;
   }
-  if (dist) {
+  if (dist)
+  {
     (*dist)[root] = 0;
   }
 
   cgraph_ivec_t nptr = cgraph_ivec_create();
   cgraph_ivec_init(&nptr, no_of_nodes);
   cgraph_ivec_t *neis_cache =
-    (cgraph_ivec_t *)calloc(no_of_nodes, sizeof(cgraph_ivec_t));
+      (cgraph_ivec_t *)calloc(no_of_nodes, sizeof(cgraph_ivec_t));
   cgraph_ivec_t neis = NULL;
-  for (actroot = 0; actroot < no_of_nodes; ) {
+  for (actroot = 0; actroot < no_of_nodes;)
+  {
 
     /* 'root' first, then all other vertices */
-    if (cgraph_istack_empty(stack)) {
-      if (!unreachable) {
+    if (cgraph_istack_empty(stack))
+    {
+      if (!unreachable)
+      {
         break;
       }
-      if (added[actroot]) {
+      if (added[actroot])
+      {
         actroot++;
         continue;
       }
       CGRAPH_CHECK(cgraph_istack_push(stack, actroot));
       added[actroot] = true;
-      if (father) {
+      if (father)
+      {
         (*father)[actroot] = -1;
       }
-      if (order) {
+      if (order)
+      {
         (*order)[act_rank++] = actroot;
       }
-      if (dist) {
+      if (dist)
+      {
         (*dist)[actroot] = 0;
       }
     }
 
     cgraph_ivec_fill(nptr, 0);
-    while (!cgraph_istack_empty(stack)) {
+    while (!cgraph_istack_empty(stack))
+    {
       CGRAPH_INTEGER actvect;
       cgraph_istack_top(stack, &actvect);
-      if (!neis_cache[actvect]) {
+      if (!neis_cache[actvect])
+      {
         neis_cache[actvect] = cgraph_ivec_create();
         cgraph_neighbors(graph, neis_cache + actvect, actvect, mode);
       }
@@ -2282,38 +2400,48 @@ int cgraph_dfs(const cgraph_t *graph,
       /* Search for a neighbor that was not yet visited */
       bool any = 0;
       CGRAPH_INTEGER nei,
-                     *ptr = nptr + actvect;
-      while (!any && (*ptr) < n) {
+          *ptr = nptr + actvect;
+      while (!any && (*ptr) < n)
+      {
         nei = neis[*ptr];
         any = !(added[nei]);
         ++(*ptr);
       }
-      if (any) {
+      if (any)
+      {
         /* There is such a neighbor, add it */
         CGRAPH_CHECK(cgraph_istack_push(stack, nei));
         added[nei] = true;
-        if (father) {
+        if (father)
+        {
           (*father)[nei] = actvect;
         }
-        if (order) {
+        if (order)
+        {
           (*order)[act_rank++] = nei;
         }
         act_dist++;
-        if (dist) {
+        if (dist)
+        {
           (*dist)[nei] = act_dist;
         }
-      } else {
+      }
+      else
+      {
         /* There is no such neighbor, finished with the subtree */
         cgraph_istack_pop(stack, NULL);
-        if (order_out) {
+        if (order_out)
+        {
           (*order_out)[rank_out++] = actvect;
         }
         act_dist--;
       }
     }
   }
-  for (CGRAPH_INTEGER i = 0; i < no_of_nodes; ++i) {
-    if (neis_cache[i]) {
+  for (CGRAPH_INTEGER i = 0; i < no_of_nodes; ++i)
+  {
+    if (neis_cache[i])
+    {
       cgraph_ivec_free(neis_cache + i);
     }
   }
@@ -2323,30 +2451,6 @@ int cgraph_dfs(const cgraph_t *graph,
   free(added);
   return 0;
 }
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-  typedef struct cgraph_istack_s CGraphIStack;
-  typedef CGraphIStack *cgraph_istack_t;
-  typedef const CGraphIStack *cgraph_istack_const_t;
-
-  cgraph_istack_t cgraph_istack_create();
-  int cgraph_istack_pop(cgraph_istack_t s, CGRAPH_INTEGER *out);
-  int cgraph_istack_push(cgraph_istack_t s, CGRAPH_INTEGER element);
-  void cgraph_istack_free(cgraph_istack_t *s);
-
-  int cgraph_istack_top(cgraph_istack_const_t const s, CGRAPH_INTEGER *out);
-  size_t cgraph_istack_size(cgraph_istack_const_t const s);
-  bool cgraph_istack_empty(cgraph_istack_const_t const s);
-
-#ifdef __cplusplus
-}
-#endif
-
-
 
 typedef CGRAPH_REAL *cgraph_rvec_t;
 
@@ -2433,45 +2537,6 @@ extern "C"
   CGRAPH_REAL cgraph_2wheap_delete_max_index(cgraph_2wheap_t *h, CGRAPH_INTEGER *idx);
   int cgraph_2wheap_modify(cgraph_2wheap_t *h, CGRAPH_INTEGER idx, CGRAPH_REAL elem);
   int cgraph_2wheap_check(cgraph_2wheap_t *h);
-
-#ifdef __cplusplus
-}
-#endif
-
-typedef void cgraph_error_handler_t(
-    const char *reason,
-    const char *file,
-    int line);
-
-#define CGRAPH_ERROR(reason)                  \
-  do                                          \
-  {                                           \
-    cgraph_error(reason, __FILE__, __LINE__); \
-  } while (0)
-
-#define CGRAPH_CHECK(a)           \
-  do                              \
-  {                               \
-    int cgraph_i_ret = (a);       \
-    if (cgraph_i_ret != 0)        \
-    {                             \
-      CGRAPH_ERROR("API failed"); \
-    }                             \
-  } while (0)
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-  void cgraph_error_handler_ignore(const char *, const char *, int);
-
-  int cgraph_error(const char *reason,
-                   const char *file,
-                   int line);
-
-  cgraph_error_handler_t *cgraph_set_error_handler(
-      cgraph_error_handler_t *new_handler);
 
 #ifdef __cplusplus
 }
@@ -4158,8 +4223,6 @@ int cgraph_get_eid(const cgraph_t *graph, CGRAPH_INTEGER *eid,
 
   return 0;
 }
-
-
 
 /******************************** Util and main functions ********************************/
 
